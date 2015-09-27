@@ -45,6 +45,9 @@ class DataContainer:
 
         print( "Packet loss rate: %d%%\n" % (self.pktLoss*100) );
 
+        print( "Total bit errors: %d\n" % self.totBitErrs );
+        #print( "Bit error rate: %d%%\n" % self.bitErr*100 );
+
     def fillPktInfo(self, tpl):
         # if statement so that first seq number is counted; otherwise will produce error.
         if tpl[0] != self.FIRSTSEQNUM:
@@ -60,6 +63,11 @@ class DataContainer:
             self.pktLoss = self.totPktsLost/self.totPkts;
         except ZeroDivisionError:
             self.pktLoss = self.pktLoss;
+
+    def fillPktInfo_8092(self, ls):
+        self.totBitErrs += ls[0];
+
+        self.bitErr = self.totBitErrs/(self.totPkts*996*8); # bit errors/total bits
 
 
 def prbs9(state = 0x1ff):
@@ -83,6 +91,28 @@ def parse_packet(pkt):
             lst.append(v);
         return lst;
 
+def get_num_bit_errors(hexword):
+    switcher = {
+        '0': 0,
+        '1': 1,
+        '2': 1,
+        '3': 2,
+        '4': 1,
+        '5': 2,
+        '6': 2,
+        '7': 3,
+        '8': 1,
+        '9': 2,
+        'a': 2,
+        'b': 3,
+        'c': 2,
+        'd': 3,
+        'e': 3,
+        'f': 4
+    }
+
+    return switcher.get( hexword.lower(), -9999);
+
 
 # Parse packet from FPGA that has number of good packets received info & returns tuple
 # containing this information = ( start sequence, number of packets following sequence )
@@ -96,12 +126,9 @@ def parse_8091_packet(pkt):
     #print pktData;
     #hexdump(pkt);
 
-    # Prevent error in case corrupted packet (a good packet will be 60 bytes)
-    if (len(pktData) > 60 ):
-        return None;
-
     i = 0;
 
+    # Unpack only data section of packet
     for i in range(14, len(pktData)-7, 8):
         #print pktData[i:i+8].encode('hex');
         v = struct.unpack('>LL', pktData[i:i+8]);
@@ -109,16 +136,22 @@ def parse_8091_packet(pkt):
         if v[1] > 0:
             return v;
 
+
+# Returns array with number of bit errors in packet and 996 byte string that indicated where
+# those errors occured.
 def parse_8092_packet(pkt):
 
     gen = prbs9(); # Check packet data against this, bitwise;
     output = [];
 
     pktinfo = (pkt[0]); # All packet data is contained in first index
-    #data = str(pktinfo)[14:len(pktinfo)].encode('hex'); # Convert to hex
+    data = str(pktinfo)[18:len(pktinfo)].encode('hex'); #  Grab data section & convert to hex (only get 996 of prbs9)
     #bindata = binascii.unhexlify(data); #Convert to binary <--convert to int?
     #print type(bindata);
     #print type(pktinfo);
+    ls = ''
+    vals = [];
+    numerrs = 0;
 
 
 
@@ -128,20 +161,55 @@ def parse_8092_packet(pkt):
     #print bindata;
     #print ( (int(bindata)&gen) );
 
+    i=1;
     """
     try:
         while True:
             item = next(gen);
+            #print item;
             # Do stuff
-            output.append( ( int(bindata)&item)|(~int(bindata)&~item) );
+            #print 'key (per byte): ' + str(item).encode('hex');
+            #print 'value (per byte): ' + data[i];
+
+            i += 1;
+            print i;
+            #output.append( ( int(bindata)&item)|(~int(bindata)&~item) );
     except StopIteration:
         pass
     finally:
         del gen;
-
-    print output;
-    #print bindata + '\n';
     """
+
+    # Check bit errors per byte (up to 996 bytes for prbs9
+    for item in gen:
+
+        if i > 996:
+            break;
+
+        #key += str(hex(item));
+        d_int = int(data[i-1],16); # Convert hex string byte to int
+        result = item ^ d_int; # xor prbs9 byte data with byte data
+
+        r_hex = hex(result); # Convert result to hex string
+
+        # Append to total number of bit errors
+        for a in r_hex[2:len(r_hex)]:
+            numerrs += get_num_bit_errors(a.lower());
+
+        ls += ( r_hex[2:len(r_hex)] ); # Append byte hex string to all byte results for packet
+
+
+        i += 1;
+
+    #print output;
+    #print bindata + '\n';
+    #print "key len: " + str(i);
+    vals.append(numerrs);
+    vals.append(ls);
+
+    return vals;
+
+
 
 def get_packet_protocol(pkt):
     pktInfo = str(pkt);
@@ -186,15 +254,18 @@ def processPkt (pkt, container):
 
     etherproto = get_packet_protocol(pkt);
 
-    if (etherproto == '8091'):
+    # Pick respective prosessing methods based on etherprotocol.
+    # Also, do not process corrupted packets - packets not of correct byte size.
+    if (etherproto == '8091' and len(pkt) == 60):
         info = parse_8091_packet(pkt);
 
         # Prevent analysis on bad packet
         if info != None:
             container.fillPktInfo(info);
 
-    elif (etherproto == '8092'):
-        parse_8092_packet(pkt);
+    elif (etherproto == '8092' and len(pkt) == 1014):
+        badinfo = parse_8092_packet(pkt);
+        container.fillPktInfo_8092(badinfo);
 
 
 
