@@ -154,14 +154,14 @@ def parse_8092_packet(pkt):
     numerrs = 0;
 
 
-
     #print data.encode('hex') + '\n';
 
 
     #print bindata;
     #print ( (int(bindata)&gen) );
 
-    i=1;
+    i=1; # For 996 byte loop
+    j=0; # For d_str array movement
     """
     try:
         while True:
@@ -187,8 +187,10 @@ def parse_8092_packet(pkt):
             break;
 
         #key += str(hex(item));
-        d_int = int(data[i-1],16); # Convert hex string byte to int
+        d_str = data[j] + data[j+1]; # Get each byte as string from data
+        d_int = int(d_str,16); # Convert hex string byte to int
         result = item ^ d_int; # xor prbs9 byte data with byte data
+
 
         r_hex = hex(result); # Convert result to hex string
 
@@ -200,6 +202,7 @@ def parse_8092_packet(pkt):
 
 
         i += 1;
+        j += 2;
 
     #print output;
     #print bindata + '\n';
@@ -317,4 +320,4 @@ def StartPCAPReadDaemon(logfile):
     readThread.start();
     time.sleep(1);
 
-RunPCAPRead(filename);
+#RunPCAPRead(filename);
