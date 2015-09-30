@@ -77,7 +77,7 @@ class DataContainer:
         # Get total of packets sent thus far by comparing initial sequence number and
         # latest batch of good packets processed.
         v = tpl[len(tpl)-1];
-        self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM + 1;
+        self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM;
 
         # Calculate total of good packets sent thus for for the trial
         for i in tpl:

@@ -111,7 +111,7 @@ def main():
 
     # Test 0x8091 packet processing
 
-
+    """
     # Test 0x8092 packet processing
     print "Begin 0x8092 Good Test";
     pkt = gen_8092_pkt();
@@ -139,10 +139,11 @@ def main():
     dataContainer.fillPktInfo_8092(PCAPReader.parse_8092_packet(gen_bad_8092_pkt()));
     dataContainer.writeToFile('Iteration1.csv');
     print "Done."
+    """
 
     # Start RunTrial test
 
-    PCAPReader.RunTrial(50, "Trial1.pcap");
+    PCAPReader.RunTrial(10000, "Trial1.pcap");
 
 
 
