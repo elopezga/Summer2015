@@ -142,7 +142,7 @@ def main():
 
     # Start RunTrial test
 
-    PCAPReader.RunTrial(1000, "Trial1.pcap");
+    PCAPReader.RunTrial(50, "Trial1.pcap");
 
 
 

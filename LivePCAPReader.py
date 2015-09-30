@@ -1,6 +1,6 @@
 __author__ = 'edgar'
 
-import dpkt
+#import dpkt
 from sys import argv
 from subprocess import call
 from scapy.all import *
@@ -364,12 +364,15 @@ def RunPCAPRead (filename):
 def RunTrial(numpkts, filename):
 
     # Construct tshark call string
-    interf = "wlan0"
-    tsharkArgs = "-i " + interf + "-c " + str(numpkts) + "-w " + filename;
+    interf = "eth8"
+    tsharkArgs = " -i " + interf + " -c " + str(numpkts) + " -w " + filename + " -F pcap";
 
+    # Logfile must aleady exist before hand
+    os.mknod(filename);
 
     # Start wireshark and record logfile for n amount of time
-    call(["sudo tshark", tsharkArgs]);
+    #call(["tshark", tsharkArgs]);
+    os.system( "tshark" + tsharkArgs );
 
 
 
@@ -396,7 +399,7 @@ def RunTrial(numpkts, filename):
 
     # Write analysis to file
     fn = filename[:-5]; # Strip .pcap from filename string
-    metaData.writeToFile(fn);
+    metaData.writeToFile(fn+".csv");
 
 
 def StartPCAPReadDaemon(logfile):
