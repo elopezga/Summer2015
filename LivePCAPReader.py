@@ -2,6 +2,7 @@ __author__ = 'edgar'
 
 import dpkt
 from sys import argv
+from subprocess import call
 from scapy.all import *
 import time
 import re
@@ -9,6 +10,7 @@ import os
 import struct
 import threading
 import binascii
+import csv
 
 
 script, filename = argv;
@@ -18,7 +20,8 @@ class DataContainer:
 
     def __init__(self):
 
-        self.FIRSTSEQNUM = 802159925;
+        #self.FIRSTSEQNUM = 802159925;
+        self.FIRSTSEQNUM = -9999;
         self.seqNum = 0;
         self.totPkts = 0;
         self.totPktsReceived = 0; # Total packets received
@@ -64,10 +67,51 @@ class DataContainer:
         except ZeroDivisionError:
             self.pktLoss = self.pktLoss;
 
+    def fillPktInfo_8091(self, tpl):
+
+        # Used to record very first sequence number of trial. This is needed to calculate
+        # total number of packets sent thus far.
+        if self.FIRSTSEQNUM == -9999:
+            self.FIRSTSEQNUM = tpl[0][0];
+
+        # Get total of packets sent thus far by comparing initial sequence number and
+        # latest batch of good packets processed.
+        v = tpl[len(tpl)-1];
+        self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM + 1;
+
+        # Calculate total of good packets sent thus for for the trial
+        for i in tpl:
+            self.totPktsReceived += i[1];
+
+        # Calculate number bad packets
+        self.totPktsLost = self.totPkts - self.totPktsReceived;
+
+        # Calculate packet loss rate
+        try:
+            self.pktLoss = round(float(self.totPktsLost)/float(self.totPkts)*float(100),2);
+        except ZeroDivisionError:
+            pass;
+
+
     def fillPktInfo_8092(self, ls):
         self.totBitErrs += ls[0];
 
-        self.bitErr = self.totBitErrs/(self.totPkts*996*8); # bit errors/total bits
+        self.bitErr = float(self.totBitErrs)/float(self.totPkts*float(996)*float(8)); # bit errors/total bits
+
+    # Write the state of the data to csv file
+    def writeToFile(self, filename):
+        file = open(filename, 'w');
+        writer = csv.writer(file);
+
+        data = [['TotPkts', self.totPkts],\
+                ['TotPktsReceived', self.totPktsReceived],\
+                ['TotPktsLost', self.totPktsLost],\
+                ['PktLostRate', self.pktLoss],\
+                ['BitErrors', self.totBitErrs],\
+                ['BitErrorRate', self.bitErr]];
+
+        writer.writerows(data);
+        file.close();
 
 
 def prbs9(state = 0x1ff):
@@ -134,7 +178,9 @@ def parse_8091_packet(pkt):
         v = struct.unpack('>LL', pktData[i:i+8]);
 
         if v[1] > 0:
-            return v;
+            lst.append(v);
+
+    return lst;
 
 
 # Returns array with number of bit errors in packet and 996 byte string that indicated where
@@ -313,6 +359,45 @@ def RunPCAPRead (filename):
         pkts = rdpcap(filename); # Open updated
         start = end;
         end = len(pkts)-1;
+
+
+def RunTrial(numpkts, filename):
+
+    # Construct tshark call string
+    interf = "wlan0"
+    tsharkArgs = "-i " + interf + "-c " + str(numpkts) + "-w " + filename;
+
+
+    # Start wireshark and record logfile for n amount of time
+    call(["sudo tshark", tsharkArgs]);
+
+
+
+    # Open logfile for processing
+    pkts = rdpcap(filename);
+    metaData = DataContainer();
+
+    for pkt in pkts:
+        etherproto = get_packet_protocol(pkt);
+
+        # Pick respective prosessing methods based on etherprotocol.
+        # Also, do not process corrupted packets - packets not of correct byte size.
+        if (etherproto == '8091' and len(pkt) == 60):
+            info = parse_8091_packet(pkt);
+
+            # Prevent analysis on bad packet
+            if info != None:
+                metaData.fillPktInfo_8091(info);
+
+        elif (etherproto == '8092' and len(pkt) == 1014):
+            badinfo = parse_8092_packet(pkt);
+            metaData.fillPktInfo_8092(badinfo);
+
+
+    # Write analysis to file
+    fn = filename[:-5]; # Strip .pcap from filename string
+    metaData.writeToFile(fn);
+
 
 def StartPCAPReadDaemon(logfile):
     readThread = threading.Thread( target=RunPCAPRead, kwargs=dict(filename=logfile) );

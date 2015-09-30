@@ -8,7 +8,31 @@ import struct
 script, filename = argv;
 
 def gen_8091_pkt():
-    pass
+    SRC='08:11:96:50:3a:1c';
+    DST='08:11:96:50:3a:1c';
+
+    # Craft ethernet packet
+    pkt = Ether();
+    pkt.src=SRC;
+    pkt.dst=DST;
+    pkt.type=0x8091;
+
+
+    #data = b'\x00'+b'\x00'+b'\x00'+b'\x01'; # Will hold 996 bytes prbs9 data
+    # Start off with the 4 bytes of sequence number
+
+    # Only want 996 bytes of prbs9
+    data = bytes();
+    data += struct.pack('>LL', 1,3);
+    data += struct.pack('>LL', 5,7);
+    data += struct.pack('>LL', 99, 2);
+
+    b = pkt/data;
+
+
+    #print len(b);
+    #hexdump(b);
+    return b;
 
 def gen_8092_pkt():
     SRC='08:11:96:50:3a:1c';
@@ -69,8 +93,8 @@ def gen_bad_8092_pkt():
 
         # Corrupt prbs9
         if (i==15):
-            print hex(d);
-            print hex(42);
+            #print hex(d);
+            #print hex(42);
             data += struct.pack('>B', 42);
         else:
             data += struct.pack('>B', d);
@@ -107,6 +131,18 @@ def main():
     print "Number of bit errors: " + str(values[0]);
     print "Bit error positions: ", values[1];
 
+
+
+    print "Begin Output to file test";
+    dataContainer = PCAPReader.DataContainer();
+    dataContainer.fillPktInfo_8091(PCAPReader.parse_8091_packet(gen_8091_pkt()));
+    dataContainer.fillPktInfo_8092(PCAPReader.parse_8092_packet(gen_bad_8092_pkt()));
+    dataContainer.writeToFile('Iteration1.csv');
+    print "Done."
+
+    # Start RunTrial test
+
+    PCAPReader.RunTrial(1000, "Trial1.pcap");
 
 
 
