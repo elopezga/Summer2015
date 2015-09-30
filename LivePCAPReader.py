@@ -361,11 +361,10 @@ def RunPCAPRead (filename):
         end = len(pkts)-1;
 
 
-def RunTrial(numpkts, filename):
+def RunTrial(numpkts, iface, filename):
 
     # Construct tshark call string
-    interf = "eth8"
-    tsharkArgs = " -i " + interf + " -c " + str(numpkts) + " -w " + filename + " -F pcap";
+    tsharkArgs = " -i " + iface + " -c " + str(numpkts) + " -w " + filename + " -F pcap";
 
     # Logfile must aleady exist before hand
     os.mknod(filename);
