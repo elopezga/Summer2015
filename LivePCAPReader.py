@@ -76,7 +76,11 @@ class DataContainer:
 
         # Get total of packets sent thus far by comparing initial sequence number and
         # latest batch of good packets processed.
-        v = tpl[len(tpl)-1];
+        if len(tpl) == 0:
+            v = tpl[len(tpl)];
+        else:
+            v = tpl[len(tpl)-1];
+
         self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM;
 
         # Calculate total of good packets sent thus for for the trial
@@ -276,7 +280,7 @@ def processPkt (pkt, container):
     # Display part
     #print( pkt.summary() );
     # print( pkt.show() );
-    time.sleep(0.01);
+    time.sleep(0.1);
     #hexdump(pkt)
 
     #if pkt.getLayer(Raw).load is not None:
@@ -310,7 +314,7 @@ def processPkt (pkt, container):
 
         # Prevent analysis on bad packet
         if info != None:
-            container.fillPktInfo(info);
+            container.fillPktInfo_8091(info);
 
     elif (etherproto == '8092' and len(pkt) == 1014):
         badinfo = parse_8092_packet(pkt);

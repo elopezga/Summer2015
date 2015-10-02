@@ -111,7 +111,7 @@ def main():
 
     # Test 0x8091 packet processing
 
-    """
+
     # Test 0x8092 packet processing
     print "Begin 0x8092 Good Test";
     pkt = gen_8092_pkt();
@@ -132,7 +132,7 @@ def main():
     print "Bit error positions: ", values[1];
 
 
-
+    """
     print "Begin Output to file test";
     dataContainer = PCAPReader.DataContainer();
     dataContainer.fillPktInfo_8091(PCAPReader.parse_8091_packet(gen_8091_pkt()));
@@ -141,9 +141,13 @@ def main():
     print "Done."
     """
 
+
+    PCAPReader.RunPCAPRead(filename);
+
+
     # Start RunTrial test
 
-    PCAPReader.RunTrial(10000, "Trial1.pcap");
+    #PCAPReader.RunTrial(10000, "Trial1.pcap");
 
 
 
