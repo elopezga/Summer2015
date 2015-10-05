@@ -13,7 +13,7 @@ import binascii
 import csv
 
 
-script, filename = argv;
+#script, filename = argv;
 
 class DataContainer:
 
@@ -71,36 +71,42 @@ class DataContainer:
 
         # Used to record very first sequence number of trial. This is needed to calculate
         # total number of packets sent thus far.
-        if self.FIRSTSEQNUM == -9999:
-            self.FIRSTSEQNUM = tpl[0][0];
-
-        # Get total of packets sent thus far by comparing initial sequence number and
-        # latest batch of good packets processed.
-        if len(tpl) == 0:
-            v = tpl[len(tpl)];
-        else:
-            v = tpl[len(tpl)-1];
-
-        self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM;
-
-        # Calculate total of good packets sent thus for for the trial
-        for i in tpl:
-            self.totPktsReceived += i[1];
-
-        # Calculate number bad packets
-        self.totPktsLost = self.totPkts - self.totPktsReceived;
-
-        # Calculate packet loss rate
-        try:
-            self.pktLoss = round(float(self.totPktsLost)/float(self.totPkts)*float(100),2);
-        except ZeroDivisionError:
-            pass;
+        # Ignore empty list (when no good packets are coming throuhg)
+        if tpl:
+            if self.FIRSTSEQNUM == -9999:
+                self.FIRSTSEQNUM = tpl[0][0];
+    
+            # Get total of packets sent thus far by comparing initial sequence number and
+            # latest batch of good packets processed.
+            if len(tpl) == 0:
+                v = tpl[len(tpl)];
+            else:
+                v = tpl[len(tpl)-1];
+    
+            self.totPkts = v[0]+v[1] - self.FIRSTSEQNUM;
+    
+            # Calculate total of good packets sent thus for for the trial
+            for i in tpl:
+                self.totPktsReceived += i[1];
+    
+            # Calculate number bad packets
+            self.totPktsLost = self.totPkts - self.totPktsReceived;
+    
+            # Calculate packet loss rate
+            try:
+                self.pktLoss = round(float(self.totPktsLost)/float(self.totPkts)*float(100),2);
+            except ZeroDivisionError:
+                pass;
 
 
     def fillPktInfo_8092(self, ls):
         self.totBitErrs += ls[0];
 
-        self.bitErr = float(self.totBitErrs)/float(self.totPkts*float(996)*float(8)); # bit errors/total bits
+        try:
+            self.bitErr = float(self.totBitErrs)/float(self.totPkts*float(996)*float(8)); # bit errors/total bits
+        except ZeroDivisionError:
+            pass;
+        
 
     # Write the state of the data to csv file
     def writeToFile(self, filename):
@@ -280,7 +286,7 @@ def processPkt (pkt, container):
     # Display part
     #print( pkt.summary() );
     # print( pkt.show() );
-    time.sleep(0.1);
+    time.sleep(0.01);
     #hexdump(pkt)
 
     #if pkt.getLayer(Raw).load is not None:
@@ -306,7 +312,6 @@ def processPkt (pkt, container):
     #print parse_packet(pkt);
 
     etherproto = get_packet_protocol(pkt);
-
     # Pick respective prosessing methods based on etherprotocol.
     # Also, do not process corrupted packets - packets not of correct byte size.
     if (etherproto == '8091' and len(pkt) == 60):
@@ -315,8 +320,10 @@ def processPkt (pkt, container):
         # Prevent analysis on bad packet
         if info != None:
             container.fillPktInfo_8091(info);
+            pass;
 
     elif (etherproto == '8092' and len(pkt) == 1014):
+        
         badinfo = parse_8092_packet(pkt);
         container.fillPktInfo_8092(badinfo);
 
@@ -345,6 +352,7 @@ def RunPCAPRead (filename):
             lastSQ = metaData.seqNum;
 
             # Updates metaData from previous call
+            print "About to process packet"
             processPkt(pkts[start], metaData);
 
             #metaData.getPktLoss(lastSQ, metaData.seqNum);

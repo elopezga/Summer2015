@@ -5,7 +5,7 @@ from sys import argv;
 from scapy.all import *
 import struct
 
-script, filename = argv;
+#script, filename = argv;
 
 def gen_8091_pkt():
     SRC='08:11:96:50:3a:1c';
@@ -142,7 +142,8 @@ def main():
     """
 
 
-    PCAPReader.RunPCAPRead(filename);
+    #PCAPReader.RunPCAPRead(filename);
+    PCAPReader.RunTrial(1000, 'eth7', "Iteration1.pcap");
 
 
     # Start RunTrial test
